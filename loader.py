@@ -1,10 +1,14 @@
 import requests
 import sqlite3
 import os
+import re
 
 API_KEY = os.environ.get("TWINWORD_API")
 TWINWORD_URL = 'https://www.twinword.com/api/v4/sentiment/analyze/'
 DB_NAME = 'save_the_hacker.db'
+
+def encode(string):
+	return string.encode('ascii', 'ignore')
 
 def load():
 	conn = sqlite3.connect(DB_NAME)
@@ -21,10 +25,12 @@ def load():
 		if r.status_code == 200:
 			data = r.json()
 			for article in data['articles']:
-				print article['title']
-				if not c.execute("select title from articles where title = (?)", (article['title'], )).fetchone():
-					twinword_response = requests.post(TWINWORD_URL, data = {'text': article['title'] + " " + article['description']})
-					c.execute("INSERT INTO articles (source, url, date, url_to_image, title, description, twinword_response, sentiment) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (source_text, article['url'], article['publishedAt'], article['urlToImage'], article['title'], article['description'], twinword_response.text, twinword_response.json()['type']))
+				title = encode(article['title'])
+				description = encode(article['description'])
+				print(description)
+				if not c.execute("select title from articles where title = (?)", (title, )).fetchone():
+					twinword_response = requests.post(TWINWORD_URL, data = {'text': title + " " + description})
+					c.execute("INSERT INTO articles (source, url, date, url_to_image, title, description, twinword_response, sentiment) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (source_text, article['url'], article['publishedAt'], article['urlToImage'], title, description, twinword_response.text, twinword_response.json()['type']))
 
 	conn.commit()
 	conn.close()
